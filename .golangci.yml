@@ -1,0 +1,75 @@
+linters:
+  disable-all: true
+  # run 'golangci-lint help linters' to see the list of supported linters
+  enable:
+    # Enabled by default
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # Enabled, disabled by default
+    - asasalint
+    - asciicheck
+    - bidichk
+    - containedctx
+    - copyloopvar
+    - decorder
+    - dogsled
+    - dupl
+    - durationcheck
+    - errchkjson
+    - errname
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forcetypeassert
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - godot
+    - gofmt
+    - gofumpt
+    - goimports
+    - gosec
+    - iface
+    - importas
+    - inamedparam
+    - interfacebloat
+    - intrange
+    - ireturn
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nolintlint
+    - perfsprint
+    - predeclared
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - stylecheck
+    - tagalign
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - whitespace
+    - wrapcheck
+  fast: false
+
+run:
+  timeout: 3m
+
+linters-settings:
+  cyclop:
+    max-complexity: 15
