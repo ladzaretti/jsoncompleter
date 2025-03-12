@@ -68,6 +68,8 @@ func reconstruct(input string) string {
 
 	openBrackets := NewStack[rune]()
 	openQuotes := false
+	expectingKey := false
+	expectingColon := false
 
 	for i, ch := range input {
 		if openQuotes && ch != '"' {
@@ -77,29 +79,66 @@ func reconstruct(input string) string {
 		switch ch {
 		case '"':
 			if i > 0 && input[i-1] == '\\' {
-				break
+				break // ignore escaped quote
 			}
+
 			openQuotes = !openQuotes
-		case '{', '[':
-			openBrackets.Push(ch)
+
+			if !openQuotes {
+				if insideObject(openBrackets) && expectingKey { // closing key quotes
+					expectingColon = true
+				}
+				expectingKey = false
+			}
+		case ':':
+			expectingColon = false
+		case '{':
+			openBrackets.Push('{')
+			expectingKey = true
 		case '}':
-			if top, ok := openBrackets.Peek(); ok && top == '{' {
+			if insideObject(openBrackets) {
 				openBrackets.Pop()
 			}
+		case ',':
+			if insideObject(openBrackets) {
+				expectingKey = true
+			}
+		case '[':
+			openBrackets.Push('[')
 		case ']':
-			if top, ok := openBrackets.Peek(); ok && top == '[' {
+			if insideArray(openBrackets) {
 				openBrackets.Pop()
+			}
+		default:
+			if expectingKey && !openQuotes && !unicode.IsSpace(ch) {
+				return input
 			}
 		}
 	}
 
+	last := output[len(output)-1]
 	if openQuotes {
-		output += `"`
+		switch {
+		case expectingKey && last == '"':
+			output += `key": null`
+		case expectingKey:
+			output += `": null`
+		default:
+			output += `"`
+		}
+	}
+
+	last = output[len(output)-1]
+	if last == ',' {
+		output = output[:len(output)-1]
+	}
+
+	if expectingColon {
+		output += ": null"
 	}
 
 	// append "null" if a json literal is expected but is missing
-	last := output[len(output)-1]
-	if last == ',' || last == ':' {
+	if last == ':' {
 		output += " null"
 	}
 
@@ -109,7 +148,7 @@ func reconstruct(input string) string {
 		i--
 	}
 
-	// ensure there's a truncated literal to complete
+	// ensure there is a truncated literal to complete
 	if i < len(output)-1 {
 		literal := output[i+1:]
 		output += completeLiteral(literal)
@@ -127,4 +166,20 @@ func reconstruct(input string) string {
 	}
 
 	return output
+}
+
+func insideObject(openBrackets *Stack[rune]) bool {
+	if top, ok := openBrackets.Peek(); ok && top == '{' {
+		return true
+	}
+
+	return false
+}
+
+func insideArray(openBrackets *Stack[rune]) bool {
+	if top, ok := openBrackets.Peek(); ok && top == '[' {
+		return true
+	}
+
+	return false
 }

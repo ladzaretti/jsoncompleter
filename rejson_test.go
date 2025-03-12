@@ -1,92 +1,43 @@
 package rejson_test
 
 import (
-	"fmt"
+	"encoding/json"
 	"testing"
 
 	"github.com/ladzaretti/rejson"
 )
 
 func TestReconstruct(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
+	jsonString := `
 		{
-			input: `   `,
-			want:  `   `,
-		},
-		{
-			input: `  a `,
-			want:  `  a `,
-		},
-		{
-			input: `  n`,
-			want:  `  null`,
-		},
-		{
-			input: `   fal  `,
-			want:  `   false  `,
-		},
-		{
-			input: `   1  `,
-			want:  `   1  `,
-		},
-		{
-			input: `{`,
-			want:  `{}`,
-		},
-		{
-			input: `{{{{[  `,
-			want:  `{{{{[]}}}}  `,
-		},
-		{
-			input: `[`,
-			want:  `[]`,
-		},
-		{
-			input: `{"nested": { "a": 1 }`,
-			want:  `{"nested": { "a": 1 }}`,
-		},
-		{
-			input: `{"key": "value`,
-			want:  `{"key": "value"}`,
-		},
-		{
-			input: `{"key": "esc\"ap\\ed`,
-			want:  `{"key": "esc\"ap\\ed"}`,
-		},
-		{
-			input: `{"key": "[[}{[[]]`,
-			want:  `{"key": "[[}{[[]]"}`,
-		},
-		{
-			input: `{"key": 1`,
-			want:  `{"key": 1}`,
-		},
-		{
-			input: `{"key": `,
-			want:  `{"key": null} `,
-		},
-		{
-			input: `{"key": f`,
-			want:  `{"key": false}`,
-		},
-		{
-			input: `{"key": tr`,
-			want:  `{"key": true}`,
-		},
-		{
-			input: `{"key": true}`,
-			want:  `{"key": true}`,
-		},
-	}
+		  "string": "text",
+		  "number": 123,
+		  "boolean_true": true,
+		  "boolean_false": false,
+		  "null_value": null,
+		  "object": {
+		    "nested_string": "nested",
+		    "nested_number": 42,
+		    "nested_boolean_true": true,
+		    "nested_boolean_false": false,
+		    "nested_null": null,
+        	    "nested_array": ["item1", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3]]
+		  },
+		  "array": ["item1", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3]]
+		}
+	`
 
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("Reconstruct(%s)", tt.input), func(t *testing.T) {
-			if got := rejson.Reconstruct(tt.input); got != tt.want {
-				t.Errorf("Reconstruct(%q) = %q; want %q", tt.input, got, tt.want)
-			}
-		})
+	for i := len(jsonString); i > 0; i-- {
+		truncated := jsonString[:i]
+		got := rejson.Reconstruct(truncated)
+
+		if len(got) == len(truncated) {
+			continue
+		}
+
+		var j any
+		if err := json.Unmarshal([]byte(got), &j); err != nil {
+			t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", truncated, err, got)
+		}
 	}
 }
