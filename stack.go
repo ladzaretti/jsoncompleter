@@ -1,4 +1,4 @@
-package rejson
+package jsoncomplete
 
 type Stack[T any] struct {
 	items []T

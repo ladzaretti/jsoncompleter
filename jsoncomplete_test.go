@@ -1,16 +1,18 @@
-package rejson_test
+package jsoncomplete_test
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ladzaretti/rejson"
+	"github.com/ladzaretti/jsoncomplete"
 )
 
 func TestReconstruct(t *testing.T) {
+	// TODO: jsonString = "[-123.0e+3]"
 	jsonString := `
 		{
 		  "string": "text",
+		  "hexString": "\u0000",
 		  "number": 123,
 		  "boolean_true": true,
 		  "boolean_false": false,
@@ -21,7 +23,7 @@ func TestReconstruct(t *testing.T) {
 		    "nested_boolean_true": true,
 		    "nested_boolean_false": false,
 		    "nested_null": null,
-        	    "nested_array": ["item1", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3]]
+		    "nested_array": ["it\\\\em1", "\u0000", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3, "\n"]]
 		  },
 		  "array": ["item1", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3]]
 		}
@@ -29,7 +31,7 @@ func TestReconstruct(t *testing.T) {
 
 	for i := len(jsonString); i > 0; i-- {
 		truncated := jsonString[:i]
-		got := rejson.Reconstruct(truncated)
+		got := jsoncomplete.Complete(truncated)
 
 		if len(got) == len(truncated) {
 			continue
