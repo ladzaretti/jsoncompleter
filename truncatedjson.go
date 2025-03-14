@@ -103,16 +103,16 @@ func (tj *truncatedJSON) complete(input string) string {
 func (tj *truncatedJSON) analyze(input string) {
 	for _, ch := range input {
 		if ch == '"' {
-			tj.handleQuote()
+			tj.analyzeQuote()
 			continue
 		}
 
 		if tj.insideQuotes {
-			tj.handleString(ch)
+			tj.analyzeString(ch)
 			continue
 		}
 
-		tj.handleStructural(ch)
+		tj.analyzeStructural(ch)
 	}
 }
 
@@ -168,19 +168,7 @@ func (tj *truncatedJSON) insideArray() bool {
 	return false
 }
 
-func (tj *truncatedJSON) completeMissingValue(last byte) string {
-	if tj.expectingColon {
-		return ": null"
-	}
-
-	if last == ':' {
-		return " null"
-	}
-
-	return ""
-}
-
-func (tj *truncatedJSON) handleQuote() {
+func (tj *truncatedJSON) analyzeQuote() {
 	if tj.expectingEscape {
 		tj.expectingEscape = false
 		return
@@ -199,7 +187,7 @@ func (tj *truncatedJSON) handleQuote() {
 	}
 }
 
-func (tj *truncatedJSON) handleString(ch rune) {
+func (tj *truncatedJSON) analyzeString(ch rune) {
 	switch ch {
 	case '\\':
 		tj.expectingEscape = !tj.expectingEscape
@@ -224,7 +212,7 @@ func (tj *truncatedJSON) handleHex() {
 	}
 }
 
-func (tj *truncatedJSON) handleStructural(ch rune) {
+func (tj *truncatedJSON) analyzeStructural(ch rune) {
 	switch ch {
 	case '{':
 		tj.openBrackets.Push('{')
@@ -270,22 +258,6 @@ func (tj *truncatedJSON) completeString(last byte) (missing string) {
 	return sb.String()
 }
 
-func (tj *truncatedJSON) balanceBrackets() string {
-	var sb strings.Builder
-
-	for !tj.openBrackets.Empty() {
-		bracket, _ := tj.openBrackets.Pop()
-		switch bracket {
-		case '{':
-			sb.WriteRune('}')
-		case '[':
-			sb.WriteRune(']')
-		}
-	}
-
-	return sb.String()
-}
-
 var literals = map[string]string{
 	"n":     "ull",
 	"nu":    "ll",
@@ -305,6 +277,18 @@ var literals = map[string]string{
 func completeLiteral(s string) (string, bool) {
 	completed, ok := literals[s]
 	return completed, ok
+}
+
+func (tj *truncatedJSON) completeMissingValue(last byte) string {
+	if tj.expectingColon {
+		return ": null"
+	}
+
+	if last == ':' {
+		return " null"
+	}
+
+	return ""
 }
 
 func completeNumber(last byte) string {
@@ -329,4 +313,20 @@ func lastWord(input string) string {
 	}
 
 	return ""
+}
+
+func (tj *truncatedJSON) balanceBrackets() string {
+	var sb strings.Builder
+
+	for !tj.openBrackets.Empty() {
+		bracket, _ := tj.openBrackets.Pop()
+		switch bracket {
+		case '{':
+			sb.WriteRune('}')
+		case '[':
+			sb.WriteRune(']')
+		}
+	}
+
+	return sb.String()
 }
