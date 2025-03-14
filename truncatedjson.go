@@ -97,7 +97,7 @@ func (tj *truncatedJSON) complete(input string) string {
 
 	tj.analyze(input)
 
-	return tj.completeOutput(input)
+	return tj.outputFrom(input)
 }
 
 func (tj *truncatedJSON) analyze(input string) {
@@ -116,7 +116,7 @@ func (tj *truncatedJSON) analyze(input string) {
 	}
 }
 
-func (tj *truncatedJSON) completeOutput(input string) (output string) {
+func (tj *truncatedJSON) outputFrom(input string) (output string) {
 	output = input
 	defer func() {
 		output += tj.balanceBrackets()
