@@ -1,4 +1,4 @@
-package jsoncomplete
+package truncatedjson
 
 type Stack[T any] struct {
 	items []T

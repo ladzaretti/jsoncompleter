@@ -16,6 +16,7 @@ linters:
     - bidichk
     - containedctx
     - copyloopvar
+    - cyclop
     - decorder
     - dogsled
     - dupl
@@ -26,6 +27,7 @@ linters:
     - exptostd
     - fatcontext
     - forcetypeassert
+    - funlen
     - gocheckcompilerdirectives
     - gochecknoinits
     - goconst

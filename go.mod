@@ -1,3 +1,3 @@
-module github.com/ladzaretti/jsoncomplete
+module github.com/ladzaretti/truncatedjson
 
 go 1.24.0

@@ -1,24 +1,25 @@
-package jsoncomplete_test
+package truncatedjson_test
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ladzaretti/jsoncomplete"
+	"github.com/ladzaretti/truncatedjson"
 )
 
-func TestReconstruct(t *testing.T) {
-	// TODO: jsonString = "[-123.0e+3]"
+func TestComplete(t *testing.T) {
+	// jsonString := "[-123.0e+3]"
 	jsonString := `
 		{
 		  "string": "text",
 		  "hexString": "\u0000",
 		  "number": 123,
+		  "number": -123.0e+5,
 		  "boolean_true": true,
 		  "boolean_false": false,
 		  "null_value": null,
 		  "object": {
-		    "nested_string": "nested",
+		    "nested_string": "ne{st[[]ed",
 		    "nested_number": 42,
 		    "nested_boolean_true": true,
 		    "nested_boolean_false": false,
@@ -31,7 +32,7 @@ func TestReconstruct(t *testing.T) {
 
 	for i := len(jsonString); i > 0; i-- {
 		truncated := jsonString[:i]
-		got := jsoncomplete.Complete(truncated)
+		got := truncatedjson.Complete(truncated)
 
 		if len(got) == len(truncated) {
 			continue
