@@ -5,9 +5,13 @@ import (
 	"unicode"
 )
 
-// Complete attempts to complete a truncated json string by completing
-// incomplete literals and balancing brackets.
-// The json spec https://www.json.org/json-en.html
+// The JSON specification.
+//
+// Source: https://www.json.org/json-en.html
+
+// Complete attempts to reconstruct a truncated JSON string.
+// It is assumed that the input is a valid JSON string that was truncated.
+// No guarantees are made for non-JSON input.
 func Complete(input string) string {
 	if len(input) == 0 {
 		return input
@@ -37,12 +41,13 @@ func Complete(input string) string {
 }
 
 type truncatedJSON struct {
-	openBrackets                                 *Stack[rune]
+	openBrackets *Stack[rune]
+
 	expectingKey, expectingColon, expectingValue bool
 	insideQuotes                                 bool
-	escape                                       bool
-	hex                                          bool
-	hexDigits                                    int
+
+	expectingEscape, expectingHex bool
+	hexDigitsSeen                 int
 }
 
 func newTruncatedJSON() *truncatedJSON {
@@ -64,6 +69,12 @@ func (tj *truncatedJSON) complete(input string) string {
 		return input
 	}
 
+	tj.analyze(input)
+
+	return tj.completeOutput(input)
+}
+
+func (tj *truncatedJSON) analyze(input string) {
 	for _, ch := range input {
 		if ch == '"' {
 			tj.handleQuote()
@@ -77,26 +88,37 @@ func (tj *truncatedJSON) complete(input string) string {
 
 		tj.handleStructural(ch)
 	}
+}
 
-	output := input
+func (tj *truncatedJSON) completeOutput(input string) (output string) {
+	output = input
+	defer func() {
+		output += tj.balanceBrackets()
+	}()
 
 	lastCh := output[len(output)-1]
 	if tj.insideQuotes {
 		output += tj.completeString(lastCh)
+		return
 	}
 
 	// remove trailing comma
 	if lastCh == ',' {
 		output = output[:len(output)-1]
+		return
 	}
 
-	output += tj.competeMissingValue(lastCh)
+	if s := tj.completeMissingValue(lastCh); len(s) > 0 {
+		output += s
+		return
+	}
 
-	output += completeLiteralOrNumber(lastWord(output))
+	if s := completeLiteralOrNumber(lastWord(output)); len(s) > 0 {
+		output += s
+		return
+	}
 
-	output += tj.balanceBrackets()
-
-	return output
+	return
 }
 
 func (tj *truncatedJSON) insideObject() bool {
@@ -115,7 +137,7 @@ func (tj *truncatedJSON) insideArray() bool {
 	return false
 }
 
-func (tj *truncatedJSON) competeMissingValue(last byte) string {
+func (tj *truncatedJSON) completeMissingValue(last byte) string {
 	if tj.expectingColon {
 		return ": null"
 	}
@@ -128,8 +150,8 @@ func (tj *truncatedJSON) competeMissingValue(last byte) string {
 }
 
 func (tj *truncatedJSON) handleQuote() {
-	if tj.escape {
-		tj.escape = false
+	if tj.expectingEscape {
+		tj.expectingEscape = false
 		return
 	}
 
@@ -137,7 +159,7 @@ func (tj *truncatedJSON) handleQuote() {
 
 	if !tj.insideQuotes {
 		// we just closed a string value,
-		// if it is a objects key, we no expect a colon.
+		// if it is a objects key, we now expect a colon.
 		if tj.insideObject() && tj.expectingKey {
 			tj.expectingColon = true
 		}
@@ -149,21 +171,25 @@ func (tj *truncatedJSON) handleQuote() {
 func (tj *truncatedJSON) handleString(ch rune) {
 	switch ch {
 	case '\\':
-		tj.escape = !tj.escape
+		tj.expectingEscape = !tj.expectingEscape
 	case 'u':
-		if tj.escape {
-			tj.escape = false
-			tj.hex = true
+		if tj.expectingEscape {
+			tj.expectingEscape = false
+			tj.expectingHex = true
 		}
 	default:
-		tj.escape = false
-		if tj.hex {
-			tj.hexDigits++
-			if tj.hexDigits == 4 {
-				tj.hexDigits = 0
-				tj.hex = false
-			}
+		tj.expectingEscape = false
+		if tj.expectingHex {
+			tj.handleHex()
 		}
+	}
+}
+
+func (tj *truncatedJSON) handleHex() {
+	tj.hexDigitsSeen++
+	if tj.hexDigitsSeen == 4 {
+		tj.hexDigitsSeen = 0
+		tj.expectingHex = false
 	}
 }
 
@@ -194,12 +220,12 @@ func (tj *truncatedJSON) handleStructural(ch rune) {
 func (tj *truncatedJSON) completeString(last byte) (missing string) {
 	var sb strings.Builder
 
-	if tj.escape {
+	if tj.expectingEscape {
 		sb.WriteString("\\")
 	}
 
-	if tj.hex || tj.hexDigits > 0 {
-		sb.WriteString(strings.Repeat("0", 4-tj.hexDigits))
+	if tj.expectingHex || tj.hexDigitsSeen > 0 {
+		sb.WriteString(strings.Repeat("0", 4-tj.hexDigitsSeen))
 	}
 
 	switch {

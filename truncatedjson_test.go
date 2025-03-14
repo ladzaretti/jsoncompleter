@@ -1,46 +1,62 @@
 package truncatedjson_test
 
 import (
+	"embed"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/ladzaretti/truncatedjson"
 )
 
-func TestComplete(t *testing.T) {
-	// jsonString := "[-123.0e+3]"
-	jsonString := `
-		{
-		  "string": "text",
-		  "hexString": "\u0000",
-		  "number": 123,
-		  "number": -123.0e+5,
-		  "boolean_true": true,
-		  "boolean_false": false,
-		  "null_value": null,
-		  "object": {
-		    "nested_string": "ne{st[[]ed",
-		    "nested_number": 42,
-		    "nested_boolean_true": true,
-		    "nested_boolean_false": false,
-		    "nested_null": null,
-		    "nested_array": ["it\\\\em1", "\u0000", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3, "\n"]]
-		  },
-		  "array": ["item1", 2, true, false, null, { "nested_key": "nested_value" }, [1, 2, 3]]
-		}
-	`
+//go:embed testdata/json
+var fsys embed.FS
 
-	for i := len(jsonString); i > 0; i-- {
-		truncated := jsonString[:i]
-		got := truncatedjson.Complete(truncated)
+type testFile struct {
+	path    string
+	content string
+}
 
-		if len(got) == len(truncated) {
+func readTestFiles(t *testing.T, fsys embed.FS, dir string) []testFile {
+	t.Helper()
+
+	files, err := fsys.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("directory %q: %v", dir, err)
+	}
+
+	filesContent := make([]testFile, 0, len(files))
+	for _, f := range files {
+		if f.IsDir() {
 			continue
 		}
 
-		var j any
-		if err := json.Unmarshal([]byte(got), &j); err != nil {
-			t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", truncated, err, got)
+		p := filepath.Join(dir, f.Name())
+		content, err := fsys.ReadFile(p)
+		if err != nil {
+			t.Fatalf("read file %q: %v", p, err)
 		}
+
+		filesContent = append(filesContent, testFile{path: p, content: string(content)})
+	}
+
+	return filesContent
+}
+
+func TestComplete(t *testing.T) {
+	testFiles := readTestFiles(t, fsys, "testdata/json")
+
+	for _, tt := range testFiles {
+		t.Run(tt.path, func(t *testing.T) {
+			for i := len(tt.content); i > 0; i-- {
+				truncated := tt.content[:i]
+				got := truncatedjson.Complete(truncated)
+
+				var j any
+				if err := json.Unmarshal([]byte(got), &j); err != nil {
+					t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", truncated, err, got)
+				}
+			}
+		})
 	}
 }
