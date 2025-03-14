@@ -134,13 +134,18 @@ func (tj *truncatedJSON) outputFrom(input string) (output string) {
 		return
 	}
 
-	if s := tj.completeMissingValue(lastCh); len(s) > 0 {
-		output += s
+	if val := tj.completeMissingValue(lastCh); len(val) > 0 {
+		output += val
 		return
 	}
 
-	if s := completeLiteralOrNumber(lastWord(output)); len(s) > 0 {
-		output += s
+	if literal, ok := completeLiteral(lastWord(output)); ok {
+		output += literal
+		return
+	}
+
+	if num := completeNumber(lastCh); len(num) > 0 {
+		output += num
 		return
 	}
 
@@ -302,16 +307,8 @@ func completeLiteral(s string) (string, bool) {
 	return completed, ok
 }
 
-func completeLiteralOrNumber(word string) string {
-	if len(word) == 0 {
-		return ""
-	}
-
-	if completedLiteral, ok := completeLiteral(word); ok {
-		return completedLiteral
-	}
-
-	switch word[len(word)-1] {
+func completeNumber(last byte) string {
+	switch last {
 	case '-', '+', '.':
 		return "0"
 	case 'e', 'E':

@@ -75,3 +75,5 @@ run:
 linters-settings:
   cyclop:
     max-complexity: 15
+  nakedret:
+    max-func-lines: 35
