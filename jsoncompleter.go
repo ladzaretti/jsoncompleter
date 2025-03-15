@@ -35,9 +35,10 @@ import (
 //
 // Source: https://www.json.org/json-en.html
 
-// Complete attempts to reconstruct a truncated JSON string.
-// It is assumed that the input is a valid JSON string that was truncated.
-// No guarantees are made for non-JSON input.
+// Complete attempts to finish a truncated JSON string.
+// The input is assumed to be a valid JSON string that was truncated.
+//
+// Behavior is undefined for non-JSON input.
 func Complete(truncated string) string {
 	c := &Completer{}
 	return c.Complete(truncated)
@@ -74,7 +75,7 @@ func (c *Completer) Complete(input string) string {
 		// not a json or an array value, so it is either not an invalid json
 		// string or a truncated json literal (i.e., true, false, or null).
 		if literal, ok := completeLiteral(trimmed); ok {
-			return literal
+			return leadingSpaces + literal + trailingSpaces
 		}
 		return trimmed
 	}
@@ -114,58 +115,6 @@ func (c *Completer) analyze(input string) {
 
 		c.analyzeStructural(ch)
 	}
-}
-
-func (c *Completer) outputFrom(input string) (output string) {
-	output = input
-	defer func() {
-		output += c.balanceBrackets()
-	}()
-
-	lastCh := output[len(output)-1]
-	if c.insideQuotes {
-		output += c.completeString(lastCh)
-		return
-	}
-
-	// remove trailing comma
-	if lastCh == ',' {
-		output = output[:len(output)-1]
-		return
-	}
-
-	if val := c.completeMissingValue(lastCh); len(val) > 0 {
-		output += val
-		return
-	}
-
-	if literal, ok := completeLiteral(lastWord(output)); ok {
-		output += literal
-		return
-	}
-
-	if num := completeNumber(lastCh); len(num) > 0 {
-		output += num
-		return
-	}
-
-	return
-}
-
-func (c *Completer) insideObject() bool {
-	if top, ok := c.openBrackets.peek(); ok && top == '{' {
-		return true
-	}
-
-	return false
-}
-
-func (c *Completer) insideArray() bool {
-	if top, ok := c.openBrackets.peek(); ok && top == '[' {
-		return true
-	}
-
-	return false
 }
 
 func (c *Completer) analyzeQuote() {
@@ -234,6 +183,58 @@ func (c *Completer) analyzeStructural(ch rune) {
 			c.openBrackets.pop()
 		}
 	}
+}
+
+func (c *Completer) insideObject() bool {
+	if top, ok := c.openBrackets.peek(); ok && top == '{' {
+		return true
+	}
+
+	return false
+}
+
+func (c *Completer) insideArray() bool {
+	if top, ok := c.openBrackets.peek(); ok && top == '[' {
+		return true
+	}
+
+	return false
+}
+
+func (c *Completer) outputFrom(input string) (output string) {
+	output = input
+	defer func() {
+		output += c.balanceBrackets()
+	}()
+
+	lastCh := output[len(output)-1]
+	if c.insideQuotes {
+		output += c.completeString(lastCh)
+		return
+	}
+
+	// remove trailing comma
+	if lastCh == ',' {
+		output = output[:len(output)-1]
+		return
+	}
+
+	if val := c.completeMissingValue(lastCh); len(val) > 0 {
+		output += val
+		return
+	}
+
+	if literal, ok := completeLiteral(lastWord(output)); ok {
+		output += literal
+		return
+	}
+
+	if num := completeNumber(lastCh); len(num) > 0 {
+		output += num
+		return
+	}
+
+	return
 }
 
 func (c *Completer) completeString(last byte) (missing string) {
