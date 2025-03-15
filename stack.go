@@ -1,15 +1,11 @@
-package truncatedjson
+package jsoncompleter
 
-type Stack[T any] struct {
+type stack[T any] struct {
 	items []T
 }
 
-func NewStack[T any]() *Stack[T] {
-	return &Stack[T]{items: make([]T, 0, 32)}
-}
-
 //nolint:ireturn
-func (s *Stack[T]) Peek() (T, bool) {
+func (s *stack[T]) peek() (T, bool) {
 	if len(s.items) == 0 {
 		var t T
 		return t, false
@@ -18,12 +14,12 @@ func (s *Stack[T]) Peek() (T, bool) {
 	return s.items[len(s.items)-1], true
 }
 
-func (s *Stack[T]) Push(el T) {
+func (s *stack[T]) push(el T) {
 	s.items = append(s.items, el)
 }
 
 //nolint:ireturn
-func (s *Stack[T]) Pop() (T, bool) {
+func (s *stack[T]) pop() (T, bool) {
 	var t T
 	if len(s.items) == 0 {
 		return t, false
@@ -34,6 +30,6 @@ func (s *Stack[T]) Pop() (T, bool) {
 	return t, true
 }
 
-func (s *Stack[T]) Empty() bool {
+func (s *stack[T]) empty() bool {
 	return len(s.items) == 0
 }

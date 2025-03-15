@@ -24,7 +24,7 @@
 //
 // For more information, please refer to <https://unlicense.org/>
 
-package truncatedjson
+package jsoncompleter
 
 import (
 	"strings"
@@ -38,36 +38,17 @@ import (
 // Complete attempts to reconstruct a truncated JSON string.
 // It is assumed that the input is a valid JSON string that was truncated.
 // No guarantees are made for non-JSON input.
-func Complete(input string) string {
-	if len(input) == 0 {
-		return input
-	}
-
-	l := 0
-	for l < len(input) && unicode.IsSpace(rune(input[l])) {
-		l++
-	}
-	leadingSpaces := input[:l]
-
-	r := len(input) - 1
-	for r >= 0 && unicode.IsSpace(rune(input[r])) {
-		r--
-	}
-	trailingSpaces := input[r+1:]
-
-	if r < l {
-		return input // all spaces
-	}
-
-	trimmed := input[l : r+1]
-
-	tj := newTruncatedJSON()
-
-	return leadingSpaces + tj.complete(trimmed) + trailingSpaces
+func Complete(truncated string) string {
+	c := &Completer{}
+	return c.Complete(truncated)
 }
 
-type truncatedJSON struct {
-	openBrackets *Stack[rune]
+func New() *Completer {
+	return &Completer{}
+}
+
+type Completer struct {
+	openBrackets stack[rune]
 
 	expectingKey, expectingColon, expectingValue bool
 	insideQuotes                                 bool
@@ -76,55 +57,74 @@ type truncatedJSON struct {
 	hexDigitsSeen                 int
 }
 
-func newTruncatedJSON() *truncatedJSON {
-	return &truncatedJSON{openBrackets: NewStack[rune]()}
-}
-
-func (tj *truncatedJSON) complete(input string) string {
+func (c *Completer) Complete(input string) string {
 	if len(input) == 0 {
 		return input
 	}
 
-	j := input[0]
+	l, r := leadingSpacesEnd(input), trailingSpacesStart(input)
+	if r < l {
+		return input // input is all spaces
+	}
+
+	leadingSpaces, trimmed, trailingSpaces := input[:l], input[l:r+1], input[r+1:]
+
+	j := trimmed[0]
 	if j != '{' && j != '[' {
 		// not a json or an array value, so it is either not an invalid json
 		// string or a truncated json literal (i.e., true, false, or null).
-		if literal, ok := completeLiteral(input); ok {
+		if literal, ok := completeLiteral(trimmed); ok {
 			return literal
 		}
-		return input
+		return trimmed
 	}
 
-	tj.analyze(input)
+	c.analyze(trimmed)
 
-	return tj.outputFrom(input)
+	return leadingSpaces + c.outputFrom(trimmed) + trailingSpaces
 }
 
-func (tj *truncatedJSON) analyze(input string) {
+func leadingSpacesEnd(input string) int {
+	i := 0
+	for i < len(input) && unicode.IsSpace(rune(input[i])) {
+		i++
+	}
+	return i
+}
+
+func trailingSpacesStart(input string) int {
+	i := len(input) - 1
+	for i >= 0 && unicode.IsSpace(rune(input[i])) {
+		i--
+	}
+	return i
+}
+
+func (c *Completer) analyze(input string) {
 	for _, ch := range input {
 		if ch == '"' {
-			tj.analyzeQuote()
+			c.analyzeQuote()
 			continue
 		}
 
-		if tj.insideQuotes {
-			tj.analyzeString(ch)
+		if c.insideQuotes {
+			c.analyzeString(ch)
 			continue
 		}
 
-		tj.analyzeStructural(ch)
+		c.analyzeStructural(ch)
 	}
 }
 
-func (tj *truncatedJSON) outputFrom(input string) (output string) {
+func (c *Completer) outputFrom(input string) (output string) {
 	output = input
 	defer func() {
-		output += tj.balanceBrackets()
+		output += c.balanceBrackets()
 	}()
 
 	lastCh := output[len(output)-1]
-	if tj.insideQuotes {
-		output += tj.completeString(lastCh)
+	if c.insideQuotes {
+		output += c.completeString(lastCh)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (tj *truncatedJSON) outputFrom(input string) (output string) {
 		return
 	}
 
-	if val := tj.completeMissingValue(lastCh); len(val) > 0 {
+	if val := c.completeMissingValue(lastCh); len(val) > 0 {
 		output += val
 		return
 	}
@@ -152,105 +152,105 @@ func (tj *truncatedJSON) outputFrom(input string) (output string) {
 	return
 }
 
-func (tj *truncatedJSON) insideObject() bool {
-	if top, ok := tj.openBrackets.Peek(); ok && top == '{' {
+func (c *Completer) insideObject() bool {
+	if top, ok := c.openBrackets.peek(); ok && top == '{' {
 		return true
 	}
 
 	return false
 }
 
-func (tj *truncatedJSON) insideArray() bool {
-	if top, ok := tj.openBrackets.Peek(); ok && top == '[' {
+func (c *Completer) insideArray() bool {
+	if top, ok := c.openBrackets.peek(); ok && top == '[' {
 		return true
 	}
 
 	return false
 }
 
-func (tj *truncatedJSON) analyzeQuote() {
-	if tj.expectingEscape {
-		tj.expectingEscape = false
+func (c *Completer) analyzeQuote() {
+	if c.expectingEscape {
+		c.expectingEscape = false
 		return
 	}
 
-	tj.insideQuotes = !tj.insideQuotes
+	c.insideQuotes = !c.insideQuotes
 
-	if !tj.insideQuotes {
+	if !c.insideQuotes {
 		// we just closed a string value,
 		// if it is a objects key, we now expect a colon.
-		if tj.insideObject() && tj.expectingKey {
-			tj.expectingColon = true
+		if c.insideObject() && c.expectingKey {
+			c.expectingColon = true
 		}
-		tj.expectingKey = false
-		tj.expectingValue = false
+		c.expectingKey = false
+		c.expectingValue = false
 	}
 }
 
-func (tj *truncatedJSON) analyzeString(ch rune) {
+func (c *Completer) analyzeString(ch rune) {
 	switch ch {
 	case '\\':
-		tj.expectingEscape = !tj.expectingEscape
+		c.expectingEscape = !c.expectingEscape
 	case 'u':
-		if tj.expectingEscape {
-			tj.expectingEscape = false
-			tj.expectingHex = true
+		if c.expectingEscape {
+			c.expectingEscape = false
+			c.expectingHex = true
 		}
 	default:
-		tj.expectingEscape = false
-		if tj.expectingHex {
-			tj.handleHex()
+		c.expectingEscape = false
+		if c.expectingHex {
+			c.handleHex()
 		}
 	}
 }
 
-func (tj *truncatedJSON) handleHex() {
-	tj.hexDigitsSeen++
-	if tj.hexDigitsSeen == 4 {
-		tj.hexDigitsSeen = 0
-		tj.expectingHex = false
+func (c *Completer) handleHex() {
+	c.hexDigitsSeen++
+	if c.hexDigitsSeen == 4 {
+		c.hexDigitsSeen = 0
+		c.expectingHex = false
 	}
 }
 
-func (tj *truncatedJSON) analyzeStructural(ch rune) {
+func (c *Completer) analyzeStructural(ch rune) {
 	switch ch {
 	case '{':
-		tj.openBrackets.Push('{')
-		tj.expectingKey = true
+		c.openBrackets.push('{')
+		c.expectingKey = true
 	case '[':
-		tj.openBrackets.Push('[')
+		c.openBrackets.push('[')
 	case ':':
-		tj.expectingColon = false
+		c.expectingColon = false
 	case ',':
-		if tj.insideObject() {
-			tj.expectingKey = true
+		if c.insideObject() {
+			c.expectingKey = true
 		}
 	case '}':
-		if tj.insideObject() {
-			tj.openBrackets.Pop()
+		if c.insideObject() {
+			c.openBrackets.pop()
 		}
 	case ']':
-		if tj.insideArray() {
-			tj.openBrackets.Pop()
+		if c.insideArray() {
+			c.openBrackets.pop()
 		}
 	}
 }
 
-func (tj *truncatedJSON) completeString(last byte) (missing string) {
+func (c *Completer) completeString(last byte) (missing string) {
 	var sb strings.Builder
 
-	if tj.expectingEscape {
+	if c.expectingEscape {
 		sb.WriteString("\\")
 	}
 
-	if tj.expectingHex || tj.hexDigitsSeen > 0 {
-		sb.WriteString(strings.Repeat("0", 4-tj.hexDigitsSeen))
+	if c.expectingHex || c.hexDigitsSeen > 0 {
+		sb.WriteString(strings.Repeat("0", 4-c.hexDigitsSeen))
 	}
 
 	switch {
-	case tj.expectingKey && last == '"':
+	case c.expectingKey && last == '"':
 		sb.WriteString(`key": null`)
-	case tj.expectingKey:
+	case c.expectingKey:
 		sb.WriteString(`": null`)
 	default:
 		sb.WriteString(`"`)
@@ -279,8 +279,8 @@ func completeLiteral(s string) (string, bool) {
 	return completed, ok
 }
 
-func (tj *truncatedJSON) completeMissingValue(last byte) string {
-	if tj.expectingColon {
+func (c *Completer) completeMissingValue(last byte) string {
+	if c.expectingColon {
 		return ": null"
 	}
 
@@ -315,11 +315,11 @@ func lastWord(input string) string {
 	return ""
 }
 
-func (tj *truncatedJSON) balanceBrackets() string {
+func (c *Completer) balanceBrackets() string {
 	var sb strings.Builder
 
-	for !tj.openBrackets.Empty() {
-		bracket, _ := tj.openBrackets.Pop()
+	for !c.openBrackets.empty() {
+		bracket, _ := c.openBrackets.pop()
 		switch bracket {
 		case '{':
 			sb.WriteRune('}')

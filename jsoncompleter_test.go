@@ -1,4 +1,4 @@
-package truncatedjson_test
+package jsoncompleter_test
 
 import (
 	"embed"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ladzaretti/truncatedjson"
+	"github.com/ladzaretti/jsoncompleter"
 )
 
 //go:embed testdata/json
@@ -39,7 +39,6 @@ func readTestFiles(t *testing.T, fsys embed.FS, dir string) []testFile {
 
 		filesContent = append(filesContent, testFile{path: p, content: string(content)})
 	}
-
 	return filesContent
 }
 
@@ -50,7 +49,7 @@ func TestComplete(t *testing.T) {
 		t.Run(tt.path, func(t *testing.T) {
 			for i := len(tt.content); i > 0; i-- {
 				truncated := tt.content[:i]
-				got := truncatedjson.Complete(truncated)
+				got := jsoncompleter.Complete(truncated)
 
 				var j any
 				if err := json.Unmarshal([]byte(got), &j); err != nil {
