@@ -31,14 +31,14 @@ import (
 	"unicode"
 )
 
+const JsonTruncatedMarker = `"__TRUNCATED__"`
+
 // The JSON specification.
 //
 // Source: https://www.json.org/json-en.html
 
-// Complete attempts to finish a truncated JSON string.
-// The input is assumed to be a valid JSON string that was truncated.
-//
-// Behavior is undefined for non-JSON input.
+// Complete creates a new [Completer] and calls its [Completer.Complete] method
+// with the provided input. It assumes the input is a truncated JSON string.
 func Complete(truncated string) string {
 	c := &Completer{}
 	return c.Complete(truncated)
@@ -58,6 +58,11 @@ type Completer struct {
 	hexDigitsSeen                 int
 }
 
+// Complete processes a truncated JSON string and completes it into a valid JSON.
+// It assumes that the input is a valid but truncated JSON string.
+//
+// Garbage in, garbage out:
+// If the input is not a truncated JSON, the output is unpredictable.
 func (c *Completer) Complete(input string) string {
 	if len(input) == 0 {
 		return input
@@ -80,6 +85,8 @@ func (c *Completer) Complete(input string) string {
 		return trimmed
 	}
 
+	defer c.reset()
+
 	c.analyze(trimmed)
 
 	return leadingSpaces + c.outputFrom(trimmed) + trailingSpaces
@@ -99,6 +106,10 @@ func trailingSpacesStart(input string) int {
 		i--
 	}
 	return i
+}
+
+func (c *Completer) reset() {
+	*c = Completer{}
 }
 
 func (c *Completer) analyze(input string) {

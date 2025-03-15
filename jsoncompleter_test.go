@@ -51,8 +51,8 @@ func TestComplete(t *testing.T) {
 				truncated := tt.content[:i]
 				got := jsoncompleter.Complete(truncated)
 
-				var j any
-				if err := json.Unmarshal([]byte(got), &j); err != nil {
+				var anything any
+				if err := json.Unmarshal([]byte(got), &anything); err != nil {
 					t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", truncated, err, got)
 				}
 			}
