@@ -31,13 +31,13 @@ import (
 	"unicode"
 )
 
-// DefaultTruncationMarker is the default string appended to truncated
-// JSON strings to indicate incomplete data.
-const DefaultTruncationMarker = "__TRUNCATION_MARKER__"
-
 // The JSON specification.
 //
 // Source: https://www.json.org/json-en.html
+
+// DefaultTruncationMarker is the default string for marking truncation
+// in JSON when enabled.
+const DefaultTruncationMarker = "__TRUNCATION_MARKER__"
 
 // Complete creates a new [Completer] and calls its [Completer.Complete]
 // receiver function with the provided input.
@@ -48,16 +48,26 @@ func Complete(truncated string) string {
 
 type Opt func(*Completer)
 
-// WithTruncationMarker sets a custom string
-// to mark where the JSON was truncated and fixed.
+// WithTruncationMarker sets a custom string to mark where
+// the JSON was truncated and fixed.
+//
+// The default value is [DefaultTruncationMarker].
 func WithTruncationMarker(s string) Opt {
 	return func(c *Completer) {
 		c.config.truncationMarker = s
 	}
 }
 
-// WithMarkTruncation enables marking the place
-// where the JSON got truncated and fixed.
+// WithMarkTruncation enables marking the place where
+// the JSON got truncated and fixed.
+//
+// Example:
+//
+//	Input (truncated JSON):
+//		{ "key": "value", "array": [1,2,3
+//
+//	Output (after completion):
+//		{ "key": "value", "array": [1,2,3,"__TRUNCATION_MARKER__"] }
 func WithMarkTruncation(enabled bool) Opt {
 	return func(c *Completer) {
 		c.config.markTruncation = enabled
@@ -249,7 +259,8 @@ func (c *Completer) insideArray() bool {
 func (c *Completer) outputFrom(input string) (output string) {
 	output = input
 	defer func() {
-		output += c.markTruncation(output[len(output)-1]) + c.balanceBrackets()
+		lastCh := output[len(output)-1]
+		output += c.markTruncation(lastCh) + c.balanceBrackets()
 	}()
 
 	if c.insideQuotes {
@@ -292,21 +303,17 @@ func (c *Completer) markTruncation(last byte) string {
 	}
 
 	if c.insideArray() {
-		marker := ""
-		if last != '[' {
-			marker += `, `
+		if last == '[' {
+			return `"` + c.config.truncationMarker + `"`
 		}
-		marker += `"` + c.config.truncationMarker + `"`
-		return marker
+		return `, "` + c.config.truncationMarker + `"`
 	}
 
 	if c.insideObject() {
-		marker := ""
-		if last != '{' {
-			marker += `, `
+		if last == '{' {
+			return `"` + c.config.truncationMarker + `": ""`
 		}
-		marker += `"` + c.config.truncationMarker + `": ""`
-		return marker
+		return `, "` + c.config.truncationMarker + `": ""`
 	}
 
 	return ""

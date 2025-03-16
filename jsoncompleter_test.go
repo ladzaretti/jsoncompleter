@@ -45,22 +45,36 @@ func readTestFiles(t *testing.T, fsys embed.FS, dir string) []testFile {
 func TestComplete(t *testing.T) {
 	testFiles := readTestFiles(t, fsys, "testdata/json")
 
-	c := jsoncompleter.New(
+	completerWithOpts := jsoncompleter.New(
+		jsoncompleter.WithTruncationMarker("__CUSTOM__"),
 		jsoncompleter.WithMarkTruncation(true),
 	)
 
-	for _, tt := range testFiles {
-		t.Run(tt.path, func(t *testing.T) {
-			for i := len(tt.content); i > 0; i-- {
-				truncated := tt.content[:i]
-				got := c.Complete(truncated)
+	completerWithoutOpts := jsoncompleter.New()
 
-				var anything any
-				if err := json.Unmarshal([]byte(got), &anything); err != nil {
-					t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", shorten(truncated), err, shorten(got))
-				}
-			}
-		})
+	for _, tt := range testFiles {
+		withOpts := testSuite{completerWithOpts, tt.content}
+		t.Run("with opts: "+tt.path, withOpts.testDynamicTruncation)
+
+		withoutOpts := testSuite{completerWithoutOpts, tt.content}
+		t.Run("without opts: "+tt.path, withoutOpts.testDynamicTruncation)
+	}
+}
+
+type testSuite struct {
+	completer   *jsoncompleter.Completer
+	jsonContent string
+}
+
+func (s *testSuite) testDynamicTruncation(t *testing.T) {
+	for i := len(s.jsonContent); i > 0; i-- {
+		truncated := s.jsonContent[:i]
+		got := s.completer.Complete(truncated)
+
+		var anything any
+		if err := json.Unmarshal([]byte(got), &anything); err != nil {
+			t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", shorten(truncated), err, shorten(got))
+		}
 	}
 }
 
