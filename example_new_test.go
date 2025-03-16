@@ -8,9 +8,11 @@ import (
 )
 
 func Example_new() {
-	truncated := `{"key":"value","array":[1,2,3,4],"nested":{"key1":"value1",`
+	truncated := `{"key":"value","array":[1,2,3,`
 
-	completer := jsoncompleter.New()
+	completer := jsoncompleter.New(
+		jsoncompleter.WithMarkTruncation(true),
+	)
 
 	completed := completer.Complete(truncated)
 
@@ -20,5 +22,5 @@ func Example_new() {
 	}
 
 	fmt.Printf("Completed json: %q", completed)
-	// output: Completed json: "{\"key\":\"value\",\"array\":[1,2,3,4],\"nested\":{\"key1\":\"value1\",\"key\":\"__TRUNCATED__\"}}"
+	// output: Completed json: "{\"key\":\"value\",\"array\":[1,2,3, \"__TRUNCATION_MARKER__\"]}"
 }

@@ -45,17 +45,31 @@ func readTestFiles(t *testing.T, fsys embed.FS, dir string) []testFile {
 func TestComplete(t *testing.T) {
 	testFiles := readTestFiles(t, fsys, "testdata/json")
 
+	c := jsoncompleter.New(
+		jsoncompleter.WithMarkTruncation(true),
+	)
+
 	for _, tt := range testFiles {
 		t.Run(tt.path, func(t *testing.T) {
 			for i := len(tt.content); i > 0; i-- {
 				truncated := tt.content[:i]
-				got := jsoncompleter.Complete(truncated)
+				got := c.Complete(truncated)
 
 				var anything any
 				if err := json.Unmarshal([]byte(got), &anything); err != nil {
-					t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", truncated, err, got)
+					t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", shorten(truncated), err, shorten(got))
 				}
 			}
 		})
 	}
+}
+
+const maxLen = 200
+
+func shorten(s string) string {
+	if len(s) > maxLen {
+		return "..." + s[len(s)-maxLen:]
+	}
+
+	return s
 }

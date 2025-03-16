@@ -31,28 +31,63 @@ import (
 	"unicode"
 )
 
-const JsonTruncatedMarker = `"__TRUNCATED__"`
+// DefaultTruncationMarker is the default string appended to truncated
+// JSON strings to indicate incomplete data.
+const DefaultTruncationMarker = "__TRUNCATION_MARKER__"
 
 // The JSON specification.
 //
 // Source: https://www.json.org/json-en.html
 
-// Complete creates a new [Completer] and calls its [Completer.Complete] method
-// with the provided input. It assumes the input is a truncated JSON string.
+// Complete creates a new [Completer] and calls its [Completer.Complete]
+// receiver function with the provided input.
+// It assumes the input is a truncated JSON string.
 func Complete(truncated string) string {
-	c := &Completer{}
-	return c.Complete(truncated)
+	return New().Complete(truncated)
 }
 
-func New() *Completer {
-	return &Completer{}
+type Opt func(*Completer)
+
+// WithTruncationMarker sets a custom string
+// to mark where the JSON was truncated and fixed.
+func WithTruncationMarker(s string) Opt {
+	return func(c *Completer) {
+		c.config.truncationMarker = s
+	}
+}
+
+// WithMarkTruncation enables marking the place
+// where the JSON got truncated and fixed.
+func WithMarkTruncation(enabled bool) Opt {
+	return func(c *Completer) {
+		c.config.markTruncation = enabled
+	}
+}
+
+func New(opts ...Opt) *Completer {
+	c := &Completer{config: config{
+		truncationMarker: DefaultTruncationMarker,
+	}}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
+}
+
+type config struct {
+	truncationMarker string
+	markTruncation   bool
 }
 
 type Completer struct {
+	config config
+
 	openBrackets stack[rune]
 
-	expectingKey, expectingColon, expectingValue bool
-	insideQuotes                                 bool
+	expectingKey, expectingColon bool
+	insideQuotes                 bool
 
 	expectingEscape, expectingHex bool
 	hexDigitsSeen                 int
@@ -79,7 +114,7 @@ func (c *Completer) Complete(input string) string {
 	if j != '{' && j != '[' {
 		// not a json or an array value, so it is either not an invalid json
 		// string or a truncated json literal (i.e., true, false, or null).
-		if literal, ok := completeLiteral(trimmed); ok {
+		if literal, ok := completeBoolNull(trimmed); ok {
 			return leadingSpaces + literal + trailingSpaces
 		}
 		return trimmed
@@ -109,7 +144,7 @@ func trailingSpacesStart(input string) int {
 }
 
 func (c *Completer) reset() {
-	*c = Completer{}
+	*c = Completer{config: c.config}
 }
 
 func (c *Completer) analyze(input string) {
@@ -143,7 +178,6 @@ func (c *Completer) analyzeQuote() {
 			c.expectingColon = true
 		}
 		c.expectingKey = false
-		c.expectingValue = false
 	}
 }
 
@@ -215,14 +249,18 @@ func (c *Completer) insideArray() bool {
 func (c *Completer) outputFrom(input string) (output string) {
 	output = input
 	defer func() {
-		output += c.balanceBrackets()
+		output += c.markTruncation(output[len(output)-1]) + c.balanceBrackets()
 	}()
 
-	lastCh := output[len(output)-1]
 	if c.insideQuotes {
-		output += c.completeString(lastCh)
+		output += c.completeString()
+		if c.expectingKey {
+			output += `: ""`
+		}
 		return
 	}
+
+	lastCh := output[len(output)-1]
 
 	// remove trailing comma
 	if lastCh == ',' {
@@ -230,98 +268,45 @@ func (c *Completer) outputFrom(input string) (output string) {
 		return
 	}
 
-	if val := c.completeMissingValue(lastCh); len(val) > 0 {
-		output += val
+	if missingValue := c.completeMissingValue(lastCh); len(missingValue) > 0 {
+		output += missingValue
 		return
 	}
 
-	if literal, ok := completeLiteral(lastWord(output)); ok {
-		output += literal
+	if boolNull, ok := completeBoolNull(lastNonString(input)); ok {
+		output += boolNull
 		return
 	}
 
-	if num := completeNumber(lastCh); len(num) > 0 {
-		output += num
+	if number := completeNumber(lastCh); len(number) > 0 {
+		output += number
 		return
 	}
 
 	return
 }
 
-func (c *Completer) completeString(last byte) (missing string) {
-	var sb strings.Builder
-
-	if c.expectingEscape {
-		sb.WriteString("\\")
-	}
-
-	if c.expectingHex || c.hexDigitsSeen > 0 {
-		sb.WriteString(strings.Repeat("0", 4-c.hexDigitsSeen))
-	}
-
-	switch {
-	case c.expectingKey && last == '"':
-		sb.WriteString(`key": null`)
-	case c.expectingKey:
-		sb.WriteString(`": null`)
-	default:
-		sb.WriteString(`"`)
-	}
-	return sb.String()
-}
-
-var literals = map[string]string{
-	"n":     "ull",
-	"nu":    "ll",
-	"nul":   "l",
-	"null":  "",
-	"t":     "rue",
-	"tr":    "ue",
-	"tru":   "e",
-	"true":  "",
-	"f":     "alse",
-	"fa":    "lse",
-	"fal":   "se",
-	"fals":  "e",
-	"false": "",
-}
-
-func completeLiteral(s string) (string, bool) {
-	completed, ok := literals[s]
-	return completed, ok
-}
-
-func (c *Completer) completeMissingValue(last byte) string {
-	if c.expectingColon {
-		return ": null"
-	}
-
-	if last == ':' {
-		return " null"
-	}
-
-	return ""
-}
-
-func completeNumber(last byte) string {
-	switch last {
-	case '-', '+', '.':
-		return "0"
-	case 'e', 'E':
-		return "+0"
-	default:
+func (c *Completer) markTruncation(last byte) string {
+	if !c.config.markTruncation {
 		return ""
 	}
-}
 
-func lastWord(input string) string {
-	i := len(input) - 1
-	for i > 0 && !unicode.IsSpace(rune(input[i])) {
-		i--
+	if c.insideArray() {
+		marker := ""
+		if last != '[' {
+			marker += `, `
+		}
+		marker += `"` + c.config.truncationMarker + `"`
+		return marker
 	}
 
-	if i < len(input)-1 {
-		return input[i+1:]
+	if c.insideObject() {
+		marker := ""
+		if last != '{' {
+			marker += `, `
+		}
+		marker += `"` + c.config.truncationMarker + `": ""`
+		return marker
 	}
 
 	return ""
@@ -341,4 +326,93 @@ func (c *Completer) balanceBrackets() string {
 	}
 
 	return sb.String()
+}
+
+func (c *Completer) completeString() (missing string) {
+	var sb strings.Builder
+
+	if c.expectingEscape {
+		sb.WriteString("\\")
+	}
+
+	if c.expectingHex || c.hexDigitsSeen > 0 {
+		sb.WriteString(strings.Repeat("0", 4-c.hexDigitsSeen))
+	}
+
+	sb.WriteString(`"`)
+
+	return sb.String()
+}
+
+func (c *Completer) completeMissingValue(last byte) string {
+	if c.expectingColon {
+		return `: ""`
+	}
+
+	if last == ':' {
+		return ` ""`
+	}
+
+	return ""
+}
+
+var literals = map[string]string{
+	"n":     "ull",
+	"nu":    "ll",
+	"nul":   "l",
+	"null":  "",
+	"t":     "rue",
+	"tr":    "ue",
+	"tru":   "e",
+	"true":  "",
+	"f":     "alse",
+	"fa":    "lse",
+	"fal":   "se",
+	"fals":  "e",
+	"false": "",
+}
+
+func completeBoolNull(s string) (string, bool) {
+	completed, ok := literals[s]
+	return completed, ok
+}
+
+func completeNumber(last byte) string {
+	switch last {
+	case '-', '+', '.':
+		return "0"
+	case 'e', 'E':
+		return "+0"
+	default:
+		return ""
+	}
+}
+
+func lastNonString(input string) string {
+	i := len(input) - 1
+
+	for i > 0 {
+		r := rune(input[i])
+
+		if unicode.IsSpace(r) || isDelimiter(r) {
+			break
+		}
+
+		i--
+	}
+
+	if i < len(input)-1 {
+		return input[i+1:]
+	}
+
+	return ""
+}
+
+func isDelimiter(r rune) bool {
+	switch r {
+	case '{', '[', ',', ':', ']', '}':
+		return true
+	default:
+		return false
+	}
 }
