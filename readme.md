@@ -2,13 +2,13 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/ladzaretti/jsoncompleter.svg)](https://pkg.go.dev/github.com/ladzaretti/jsoncompleter)[![Go Report Card](https://goreportcard.com/badge/github.com/ladzaretti/jsoncompleter)](https://goreportcard.com/report/github.com/ladzaretti/jsoncompleter)
 
-`jsoncompleter` is a Go package that provides a simple way to restore truncated JSON strings.
+The `jsoncompleter` repository includes both the `jsoncompleter` package and the `jr` CLI tool, providing a simple way to complete truncated `JSON` strings.
 
 ## Motivation
 
-Too many times, I encountered issues with truncated `JSON` lines in logging agent `JSONL` log dumps, making debugging with tools like `jq` and others frustrating.
+Too many times, I encountered issues with truncated `JSON` entries in `JSONL` (`JSON` Lines) log dumps, making debugging with tools like `jq` and others frustrating.
 
-That's where `jlete` comes in - restoring truncated `JSON` strings to make log analysis easier and more efficient.
+That's where `jr`—a JSON completer—comes in, completing truncated `JSON` strings to make log analysis easier.
 
 ## Installation
 
@@ -17,7 +17,7 @@ That's where `jlete` comes in - restoring truncated `JSON` strings to make log a
 go get github.com/ladzaretti/jsoncompleter
 ```
 
-### `jlete` cli tool
+### `jr` cli
 ```bash
-go install github.com/ladzaretti/jsoncompleter/cmd/jlete@latest
+go install github.com/ladzaretti/jsoncompleter/cmd/jr@latest
 ```
