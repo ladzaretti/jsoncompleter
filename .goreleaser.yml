@@ -1,0 +1,4 @@
+builds:
+  - main: ./cmd/jr
+    id: "jr"
+    binary: jr
