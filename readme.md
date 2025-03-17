@@ -39,7 +39,9 @@ jr - commandline tool for completing truncated JSON lines.
 
 Usage: jr [options] [strings...]
   -m, --mark            Enable marking of truncated JSON lines
-  -p, --placeholder     Custom placeholder for marking truncation
+  -p, --placeholder     Set a custom placeholder for marking truncation
+  -s, --skip-invalid    Skip invalid JSON strings from output
+  -d, --debug           Print the position or line number of skipped invalid JSON strings to stderr
 
 Note:
   Assumes the input is a valid but truncated JSON string.
@@ -55,7 +57,7 @@ This demonstrates the error when parsing a truncated JSON string, where data aft
 This JSONL input has 3 lines: the first and last are valid, the second is truncated.
 
 ```bash
-$ echo -e '{"foo":"bar"}\n{\n{"baz":null}'  | jq -c
+$ echo -e '{"foo":"bar"}\n{\n{"baz":null}' | jq -c
 {"foo":"bar"}
 jq: parse error: Unfinished JSON term at EOF at line 4, column 0
 ```
