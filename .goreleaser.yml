@@ -2,3 +2,8 @@ builds:
   - main: ./cmd/jr
     id: "jr"
     binary: jr
+
+archives:
+  - id: "jr"
+    format: tar.gz
+    name_template: "jsoncompleter_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
