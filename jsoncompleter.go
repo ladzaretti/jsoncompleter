@@ -183,7 +183,7 @@ func (c *Completer) analyzeStringBeginEnd() {
 
 	if !c.insideString {
 		// we just closed a string value,
-		// if it is a objects key, we now expect a colon.
+		// if it is an object key, we now expect a colon.
 		if c.insideObject() && c.expectingKey {
 			c.expectingColon = true
 		}
@@ -386,10 +386,8 @@ func completeBoolNull(s string) (string, bool) {
 
 func completeNumber(last byte) string {
 	switch last {
-	case '-', '+', '.':
+	case '-', '+', '.', 'e', 'E':
 		return "0"
-	case 'e', 'E':
-		return "+0"
 	default:
 		return ""
 	}
