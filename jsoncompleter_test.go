@@ -73,7 +73,7 @@ func (s *testSuite) testDynamicTruncation(t *testing.T) {
 
 		var anything any
 		if err := json.Unmarshal([]byte(got), &anything); err != nil {
-			t.Errorf("Reconstruct(%q) produced invalid JSON: %v (output: %q)", shorten(truncated), err, shorten(got))
+			t.Errorf("Complete(%q) produced invalid JSON: %v (output: %q)", shorten(truncated), err, shorten(got))
 		}
 	}
 }

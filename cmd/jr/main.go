@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -9,6 +10,13 @@ import (
 
 	"github.com/ladzaretti/jsoncompleter"
 )
+
+type config struct {
+	debug            bool
+	skipInvalid      bool
+	markTruncation   bool
+	truncationMarker string
+}
 
 func main() {
 	var in *bufio.Scanner
@@ -36,18 +44,26 @@ func main() {
 
 	completer := jsoncompleter.New(opts...)
 
+	i := 0
+
 	for in.Scan() {
-		fmt.Println(completer.Complete(in.Text()))
+		i++
+
+		completed := completer.Complete(in.Text())
+
+		if config.skipInvalid && !json.Valid([]byte(completed)) {
+			if config.debug {
+				fmt.Fprintf(os.Stderr, "%d\n", i)
+			}
+			continue
+		}
+
+		fmt.Println(completed)
 	}
 
 	if err := in.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
-}
-
-type config struct {
-	truncationMarker string
-	markTruncation   bool
 }
 
 func hasPipedStdin() bool {
@@ -60,8 +76,15 @@ func parseConfig() config {
 
 	flag.BoolVar(&config.markTruncation, "mark", false, "")
 	flag.BoolVar(&config.markTruncation, "m", false, "")
+
 	flag.StringVar(&config.truncationMarker, "placeholder", "", "")
 	flag.StringVar(&config.truncationMarker, "p", "", "")
+
+	flag.BoolVar(&config.skipInvalid, "skip-invalid", false, "")
+	flag.BoolVar(&config.skipInvalid, "s", false, "")
+
+	flag.BoolVar(&config.debug, "debug", false, "")
+	flag.BoolVar(&config.debug, "d", false, "")
 
 	flag.Usage = usage
 
@@ -74,7 +97,9 @@ func usage() {
 	usage := "jr - commandline tool for completing truncated JSON lines.\n\n" +
 		"Usage: jr [options] [strings...]\n" +
 		"  -m, --mark\t\tEnable marking of truncated JSON lines\n" +
-		"  -p, --placeholder\tCustom placeholder for marking truncation\n\n" +
+		"  -p, --placeholder\tSet a custom placeholder for marking truncation\n" +
+		"  -s, --skip-invalid\tSkip invalid JSON strings from output\n" +
+		"  -d, --debug\t\tPrint the position or line number of skipped invalid JSON strings to stderr\n\n" +
 		"Note:\n" +
 		"  Assumes the input is a valid but truncated JSON string."
 	fmt.Println(usage)

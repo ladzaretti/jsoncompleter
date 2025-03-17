@@ -97,7 +97,7 @@ type Completer struct {
 	openBrackets stack[rune]
 
 	expectingKey, expectingColon bool
-	insideQuotes                 bool
+	insideString                 bool
 
 	expectingEscape, expectingHex bool
 	hexDigitsSeen                 int
@@ -122,8 +122,8 @@ func (c *Completer) Complete(input string) string {
 
 	j := trimmed[0]
 	if j != '{' && j != '[' {
-		// not a json or an array value, so it is either not an invalid json
-		// string or a truncated json literal (i.e., true, false, or null).
+		// not a json object or array value, so it is either an invalid json
+		// string or a truncated json primitive (i.e., true, false, or null).
 		if literal, ok := completeBoolNull(trimmed); ok {
 			return leadingSpaces + literal + trailingSpaces
 		}
@@ -134,7 +134,7 @@ func (c *Completer) Complete(input string) string {
 
 	c.analyze(trimmed)
 
-	return leadingSpaces + c.outputFrom(trimmed) + trailingSpaces
+	return leadingSpaces + c.completeTruncated(trimmed) + trailingSpaces
 }
 
 func leadingSpacesEnd(input string) int {
@@ -160,11 +160,11 @@ func (c *Completer) reset() {
 func (c *Completer) analyze(input string) {
 	for _, ch := range input {
 		if ch == '"' {
-			c.analyzeQuote()
+			c.analyzeStringBeginEnd()
 			continue
 		}
 
-		if c.insideQuotes {
+		if c.insideString {
 			c.analyzeString(ch)
 			continue
 		}
@@ -173,15 +173,15 @@ func (c *Completer) analyze(input string) {
 	}
 }
 
-func (c *Completer) analyzeQuote() {
+func (c *Completer) analyzeStringBeginEnd() {
 	if c.expectingEscape {
 		c.expectingEscape = false
 		return
 	}
 
-	c.insideQuotes = !c.insideQuotes
+	c.insideString = !c.insideString
 
-	if !c.insideQuotes {
+	if !c.insideString {
 		// we just closed a string value,
 		// if it is a objects key, we now expect a colon.
 		if c.insideObject() && c.expectingKey {
@@ -256,14 +256,14 @@ func (c *Completer) insideArray() bool {
 	return false
 }
 
-func (c *Completer) outputFrom(input string) (output string) {
+func (c *Completer) completeTruncated(input string) (output string) {
 	output = input
 	defer func() {
-		lastCh := output[len(output)-1]
-		output += c.markTruncation(lastCh) + c.balanceBrackets()
+		ch := output[len(output)-1]
+		output += c.markTruncation(ch) + c.balanceBrackets()
 	}()
 
-	if c.insideQuotes {
+	if c.insideString {
 		output += c.completeString()
 		if c.expectingKey {
 			output += `: ""`
@@ -271,16 +271,16 @@ func (c *Completer) outputFrom(input string) (output string) {
 		return
 	}
 
-	lastCh := output[len(output)-1]
+	ch := output[len(output)-1]
 
 	// remove trailing comma
-	if lastCh == ',' {
+	if ch == ',' {
 		output = output[:len(output)-1]
 		return
 	}
 
-	if missingValue := c.completeMissingValue(lastCh); len(missingValue) > 0 {
-		output += missingValue
+	if value := c.completeValue(ch); len(value) > 0 {
+		output += value
 		return
 	}
 
@@ -289,7 +289,7 @@ func (c *Completer) outputFrom(input string) (output string) {
 		return
 	}
 
-	if number := completeNumber(lastCh); len(number) > 0 {
+	if number := completeNumber(ch); len(number) > 0 {
 		output += number
 		return
 	}
@@ -351,7 +351,7 @@ func (c *Completer) completeString() (missing string) {
 	return sb.String()
 }
 
-func (c *Completer) completeMissingValue(last byte) string {
+func (c *Completer) completeValue(last byte) string {
 	if c.expectingColon {
 		return `: ""`
 	}
@@ -363,7 +363,7 @@ func (c *Completer) completeMissingValue(last byte) string {
 	return ""
 }
 
-var literals = map[string]string{
+var boolNullSuffix = map[string]string{
 	"n":     "ull",
 	"nu":    "ll",
 	"nul":   "l",
@@ -380,8 +380,8 @@ var literals = map[string]string{
 }
 
 func completeBoolNull(s string) (string, bool) {
-	completed, ok := literals[s]
-	return completed, ok
+	suffix, ok := boolNullSuffix[s]
+	return suffix, ok
 }
 
 func completeNumber(last byte) string {
