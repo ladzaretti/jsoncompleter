@@ -27,10 +27,17 @@ Once completed, processing continues as expected, without skipping valuable insi
 go get github.com/ladzaretti/jsoncompleter
 ```
 
-### `jr` cli
+### The `jr` CLI
+
+#### Using Go
 ```bash
 go install github.com/ladzaretti/jsoncompleter/cmd/jr@latest
 ```
+
+#### Binary releases
+Precompiled binaries for various architectures are available on the release page.
+- https://github.com/ladzaretti/jsoncompleter/releases
+
 
 ### Usage
 ```bash
