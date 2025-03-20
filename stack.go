@@ -14,8 +14,8 @@ func (s *stack[T]) peek() (T, bool) {
 	return s.items[len(s.items)-1], true
 }
 
-func (s *stack[T]) push(el T) {
-	s.items = append(s.items, el)
+func (s *stack[T]) push(t T) {
+	s.items = append(s.items, t)
 }
 
 //nolint:ireturn

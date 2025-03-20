@@ -64,7 +64,7 @@ This demonstrates the error when parsing a truncated JSON string, where data aft
 This JSONL input has 3 lines: the first and last are valid, the second is truncated.
 
 ```bash
-$ echo -e '{"foo":"bar"}\n{\n{"baz":null}' | jq -c
+$ echo -e '{"foo":"bar"}\n{"baz":\n{"qux":null}' | jq -c
 {"foo":"bar"}
 jq: parse error: Unfinished JSON term at EOF at line 4, column 0
 ```
@@ -74,8 +74,8 @@ With `jr`
 This will complete the truncated JSON and allow the parsing to proceed.
 
 ```bash
-$ echo -e '{"foo":"bar"}\n{\n{"baz":null}' | jr -m | jq -c
+$ echo -e '{"foo":"bar"}\n{"baz":\n{"qux":null}' | jr -m | jq -c
 {"foo":"bar"}
-{"__TRUNCATION_MARKER__":""}
-{"baz":null}
+{"baz":"","__TRUNCATION_MARKER__":""}
+{"qux":null}
 ```
