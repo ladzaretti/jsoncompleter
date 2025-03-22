@@ -99,8 +99,6 @@ func usage() {
 		"  -m, --mark\t\tEnable marking of truncated JSON lines\n" +
 		"  -p, --placeholder\tSet a custom placeholder for marking truncation\n" +
 		"  -s, --skip-invalid\tSkip invalid JSON strings from output\n" +
-		"  -d, --debug\t\tPrint the position or line number of skipped invalid JSON strings to stderr\n\n" +
-		"Note:\n" +
-		"  Assumes the input is a valid but truncated JSON string."
+		"  -d, --debug\t\tPrint the position or line number of skipped invalid JSON strings to stderr\n"
 	fmt.Println(usage)
 }

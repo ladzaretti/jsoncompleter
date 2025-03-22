@@ -10,15 +10,13 @@ The `jsoncompleter` repository includes both the `jsoncompleter` package and the
 
 Too many times, I encountered issues with truncated `JSON` entries in `JSONL` (`JSON` Lines) log dumps, making debugging with tools like `jq` and others frustrating.
 
-That's where `jr`—a JSON completer—comes in, completing truncated `JSON` strings to make log analysis easier.
+That's where `jr` comes in, completing truncated `JSON` strings to make log analysis easier.
 
 ### Benefits of `jr`
 
 Truncated `JSON` data might still contain useful information, `jr` ensures that no data is discarded due to truncation. 
 
 It marks missing parts with placeholders, making it easy to track what's missing.
-
-Once completed, processing continues as expected, without skipping valuable insights from your data.
 
 ## Installation
 
@@ -49,9 +47,6 @@ Usage: jr [options] [strings...]
   -p, --placeholder     Set a custom placeholder for marking truncation
   -s, --skip-invalid    Skip invalid JSON strings from output
   -d, --debug           Print the position or line number of skipped invalid JSON strings to stderr
-
-Note:
-  Assumes the input is a valid but truncated JSON string.
 ```
 
 
