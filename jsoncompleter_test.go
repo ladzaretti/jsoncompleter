@@ -32,6 +32,7 @@ func readTestFiles(t *testing.T, fsys embed.FS, dir string) []testFile {
 		}
 
 		p := filepath.Join(dir, f.Name())
+
 		content, err := fsys.ReadFile(p)
 		if err != nil {
 			t.Fatalf("read file %q: %v", p, err)
@@ -39,6 +40,7 @@ func readTestFiles(t *testing.T, fsys embed.FS, dir string) []testFile {
 
 		filesContent = append(filesContent, testFile{path: p, content: string(content)})
 	}
+
 	return filesContent
 }
 

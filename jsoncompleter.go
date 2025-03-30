@@ -127,6 +127,7 @@ func (c *Completer) Complete(input string) string {
 		if literal, ok := completeBoolNull(trimmed); ok {
 			return leadingSpaces + literal + trailingSpaces
 		}
+
 		return trimmed
 	}
 
@@ -142,6 +143,7 @@ func leadingSpacesEnd(input string) int {
 	for i < len(input) && unicode.IsSpace(rune(input[i])) {
 		i++
 	}
+
 	return i
 }
 
@@ -150,6 +152,7 @@ func trailingSpacesStart(input string) int {
 	for i >= 0 && unicode.IsSpace(rune(input[i])) {
 		i--
 	}
+
 	return i
 }
 
@@ -187,6 +190,7 @@ func (c *Completer) analyzeStringBeginEnd() {
 		if c.insideObject() && c.expectingKey {
 			c.expectingColon = true
 		}
+
 		c.expectingKey = false
 	}
 }
@@ -256,6 +260,7 @@ func (c *Completer) insideArray() bool {
 	return false
 }
 
+//nolint:nakedret
 func (c *Completer) completeTruncated(input string) (output string) {
 	output = input
 	defer func() {
@@ -268,6 +273,7 @@ func (c *Completer) completeTruncated(input string) (output string) {
 		if c.expectingKey {
 			output += `: ""`
 		}
+
 		return
 	}
 
@@ -306,6 +312,7 @@ func (c *Completer) markTruncation(last byte) string {
 		if last == '[' {
 			return `"` + c.config.truncationMarker + `"`
 		}
+
 		return `, "` + c.config.truncationMarker + `"`
 	}
 
@@ -313,6 +320,7 @@ func (c *Completer) markTruncation(last byte) string {
 		if last == '{' {
 			return `"` + c.config.truncationMarker + `": ""`
 		}
+
 		return `, "` + c.config.truncationMarker + `": ""`
 	}
 
@@ -372,7 +380,7 @@ var boolNullSuffix = map[string]string{
 	"tr":    "ue",
 	"tru":   "e",
 	"true":  "",
-	"f":     "alse",
+	"f":     "alse", //nolint:misspell
 	"fa":    "lse",
 	"fal":   "se",
 	"fals":  "e",

@@ -20,8 +20,8 @@ type config struct {
 
 func main() {
 	var in *bufio.Scanner
-	config := parseConfig()
 
+	config := parseConfig()
 	args := flag.Args()
 
 	switch {
@@ -55,6 +55,7 @@ func main() {
 			if config.debug {
 				fmt.Fprintf(os.Stderr, "%d\n", i)
 			}
+
 			continue
 		}
 
