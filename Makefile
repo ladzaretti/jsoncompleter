@@ -1,7 +1,7 @@
 .DEFAULT_GOAL = check
 
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_VERSION ?= v2.2.0
+GOLANGCI_VERSION ?= v2.2.1
 TEST_ARGS=-timeout 40s -coverpkg=github.com/ladzaretti/jsoncompleter
 
 bin/golangci-lint-${GOLANGCI_VERSION}:
